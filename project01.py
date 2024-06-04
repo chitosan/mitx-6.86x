@@ -1,5 +1,6 @@
 import numpy as np
-
+import matplotlib as mp
+import matplotlib.pyplot as plt
 
 def randomization(n):
     """
@@ -8,8 +9,9 @@ def randomization(n):
     Returns:
       A - a randomly-generated nx1 Numpy array.
     """
-    return np.random.random([n,1])
-    # raise NotImplementedError
+    A = np.random.random([n,1])
+    return A
+    raise NotImplementedError
 
 def operations(h, w):
     """
@@ -27,9 +29,8 @@ def operations(h, w):
     A = np.random.random([h,w])
     B = np.random.random([h,w])
     s = A + B
-
     return A, B, s
-    # raise NotImplementedError
+    raise NotImplementedError
 
 
 def norm(A, B):
@@ -43,10 +44,11 @@ def norm(A, B):
     Returns:
       s - the L2 norm of A+B.
     """
-    s = np.linalg.norm(A + B)
+    s = np.linalg.norm(A+B)
     return s
-    # raise NotImplementedError
-    
+    raise NotImplementedError
+
+
 def neural_network(inputs, weights):
     """
      Takes an input vector and runs it through a 1-layer neural network
@@ -75,35 +77,64 @@ def scalar_function(x, y):
 
 def vector_function(x, y):
     """
-    Make sure vector_function can deal with vector input x,y 
+    Make sure vector_function can deal with vector input x,y
     """
     c = np.vectorize(scalar_function)(x, y)
     return c
     raise NotImplementedError
 
+def distance_line_point(theta, theta_0, Xn, Yn):
+    """
+    calculates the distance between line (theta * a + theta_0) and point a = (a1, a2).
+    d = _(0*a + 0o)_            d = _(theta * a + theta_0)_
+           ||0||                           ||theta||
+    Arg:
+        inputs theta NumPy array
+        inputs theta_0 NumPy array
+        inputs Xn n x 1 NumPy array
+        inputs Yn n x 1 NumPy array
+    Returns (in this order):
+        out - a 1 x 1 NumPy array, representing the the distance d for (x,y) E Sn
+    """
+    a = np.vstack((Xn,Yn))
+    d = (np.matmul(theta, a) + theta_0) / np.linalg.norm(theta)
+    return d
 
-x = randomization(3)
-y = randomization(3)
 
-print("x", x)
-print("y", y)
+v = randomization(3)
+print(v)
+print(v.T)
+print("")
 
-print(operations(3,4))
+A, B, s = operations(5,3)
+print(A)
+print(B)
+print(s)
 
-print("norm: ",norm(x,y))
+A = np.array([1,2])
+B = np.array([2,2])
+s = norm(A, B)
+print(A)
+print(B)
+print(s)
+print("\n")
 
-x = np.array([2,3])
-y = np.array([4,5])
+# A = randomization(10)
+# B = randomization(10)
+A = np.array([0.67996147,0.42809705,0.96261992,0.88771512,0.60105649,0.05127345,0.14416819,0.77735598,0.47073118,0.69904909])
+B = np.array([0.56261346,0.90882682,0.61188960,0.73015091,0.51883126,0.64649271,0.73747600,0.41865184,0.90141100,0.59611053])
+theta = np.array([1,1])
+m = -theta[1]/theta[0]
+theta_0 = 1
+print(theta)
+print("Xn")
+print(A)
+print("Yn")
+print(B)
+r = distance_line_point(theta,theta_0,A,B)
+print("result")
+print(r)
 
-print(x, x.shape)
-print(np.transpose([x]), x.T)
-print(y, y.shape, y.T)
-print (np.sum([x] * np.transpose([y])))
-
-a = np.array([2.,1.])
-b = np.array([3.,4.])
-z = neural_network(a, b)
-r = scalar_function(8, 12)
-r1 = scalar_function(8, 4)
-r2 = vector_function(8, 12)
-r3 = vector_function(8, 4)
+plt.plot(A, m*A+theta_0, linestyle='solid')
+plt.scatter(A,B)
+plt.show()

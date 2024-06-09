@@ -1,0 +1,92 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import repo
+import random
+
+def my_perceptron(x_1, x_2, y, T):
+    '''
+     perceptron algorithm on static origin
+     Args:
+        x - a row x col NumPy array, vector
+        T - integer, representing the number of trials
+     Returns (in this order):
+        theta - a N x 1 NumPy array, representing
+    '''
+    theta = np.zeros(2)
+    x = np.vstack((x_1,x_2))
+    z = np.matmul(theta, x)
+    for t in range(T):
+        for i in range(len(z)):
+            z[i] = y[i] * (theta[0] * x_1[i] + theta[1] * x_2[i])
+            if z[i] <= 0:
+                theta[0] = theta[0] + y[i]*x_1[i]
+                theta[1] = theta[1] + y[i]*x_2[i]
+    return theta
+
+def perceptron_single_step_update(
+            feature_vector,
+            label,
+            current_theta,
+            current_theta_0,t):
+    theta, theta_0 = current_theta, current_theta_0
+    if (label * (np.dot(current_theta, feature_vector) + current_theta_0)) <= 0:
+        theta = current_theta + label * feature_vector
+        theta_0 = theta_0 + label
+        print("trial = ", t)
+        print("y label, theta, x vector, x * y")
+        print(label, current_theta, feature_vector, np.dot(current_theta, feature_vector))
+        print("  ??? UNDER 0 ???  ",label * (np.dot(current_theta, feature_vector) + current_theta_0))
+        print(label, current_theta, feature_vector, label * feature_vector, theta, theta_0)
+        print(" ***************")
+    return (theta, theta_0)
+
+
+def perceptron(feature_matrix, labels, T):
+    feature_matrix = feature_matrix.T
+    size = len(feature_matrix[0])
+    theta = np.zeros((size,))  # dtype=np.float32
+    theta_0 = 0.0
+    for t in range(T):
+        for i in range(len(feature_matrix)):
+            (theta, theta_0) = perceptron_single_step_update(
+                    feature_matrix[i,:],
+                    labels[i],
+                    theta, theta_0, t)
+            pass
+    return (theta, theta_0)
+
+def test_perceptron(feature_matrix, labels, theta, theta_0, T):
+    feature_matrix = feature_matrix.T
+    for t in range(T):
+        for i in range(len(feature_matrix)):
+            (theta, theta_0) = perceptron_single_step_update(
+                    feature_matrix[i,:],
+                    labels[i],
+                    theta, theta_0, t)
+            pass
+    return (theta, theta_0)
+
+
+x_1 = np.array([-4,-2,-1, 2, 1])
+x_2 = np.array([ 2, 1,-1, 2,-2])
+y  =  np.array([ 1, 1,-1,-1,-1])
+x  = np.vstack((x_1, x_2))
+theta = np.array([-3,3])
+theta_0 = 0.0
+
+T = 1000
+teta = my_perceptron(x_1,x_2,y, T)
+theta, theta_0 = perceptron(x,y,T)
+tata, tata_0 = test_perceptron(x,y,theta,theta_0,T)
+print(teta)
+print(theta, theta_0)
+print("tatas")
+tata, tata_0 = test_perceptron(x,y,theta,theta_0,T)
+print(tata, tata_0)
+
+
+'''
+plt.plot(x,y)
+plt.scatter(x_1,x_2)
+plt.show()
+'''

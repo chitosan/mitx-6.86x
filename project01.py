@@ -1,140 +1,443 @@
+from string import punctuation, digits
 import numpy as np
-import matplotlib as mp
-import matplotlib.pyplot as plt
+import random
 
-def randomization(n):
+
+
+#==============================================================================
+#===  PART I  =================================================================
+#==============================================================================
+
+
+
+def get_order(n_samples):
+    try:
+        with open(str(n_samples) + '.txt') as fp:
+            line = fp.readline()
+            return list(map(int, line.split(',')))
+    except FileNotFoundError:
+        random.seed(1)
+        indices = list(range(n_samples))
+        random.shuffle(indices)
+        return indices
+
+
+
+def hinge_loss_single(feature_vector, label, theta, theta_0):
     """
-    Arg:
-      n - an integer
+    Finds the hinge loss on a single data point given specific classification
+    parameters.
+
+    Args:
+        `feature_vector` - numpy array describing the given data point.
+        `label` - float, the correct classification of the data
+            point.
+        `theta` - numpy array describing the linear classifier.
+        `theta_0` - float representing the offset parameter.
     Returns:
-      A - a randomly-generated nx1 Numpy array.
+        the hinge loss, as a float, associated with the given data point and
+        parameters.
     """
-    A = np.random.random([n,1])
-    return A
-    raise NotImplementedError
-
-def operations(h, w):
-    """
-    Takes two inputs, h and w, and makes two Numpy arrays A and B of size
-    h x w, and returns A, B, and s, the sum of A and B.
-
-    Arg:
-      h - an integer describing the height of A and B
-      w - an integer describing the width of A and B
-    Returns (in this order):
-      A - a randomly-generated h x w Numpy array.
-      B - a randomly-generated h x w Numpy array.
-      s - the sum of A and B.
-    """
-    A = np.random.random([h,w])
-    B = np.random.random([h,w])
-    s = A + B
-    return A, B, s
+    z = label*(np.dot(theta,feature_vector)+theta_0)
+    if z >= 1.0:
+        return 0.0
+    if z < 1.0:
+        return 1-z
     raise NotImplementedError
 
 
-def norm(A, B):
-    """
-    Takes two Numpy column arrays, A and B, and returns the L2 norm of their
-    sum.
 
-    Arg:
-      A - a Numpy array
-      B - a Numpy array
+def hinge_loss_full(feature_matrix, labels, theta, theta_0):
+    """
+    Finds the hinge loss for given classification parameters averaged over a
+    given dataset
+
+    Args:
+        `feature_matrix` - numpy matrix describing the given data. Each row
+            represents a single data point.
+        `labels` - numpy array where the kth element of the array is the
+            correct classification of the kth row of the feature matrix.
+        `theta` - numpy array describing the linear classifier.
+        `theta_0` - real valued number representing the offset parameter.
     Returns:
-      s - the L2 norm of A+B.
+        the hinge loss, as a float, associated with the given dataset and
+        parameters.  This number should be the average hinge loss across all of
     """
-    s = np.linalg.norm(A+B)
-    return s
+    def hinge(x):
+        return max(0., 1. - x)
+    n = float(np.size(labels))
+    z = labels * (np.dot(theta, feature_matrix.T) + theta_0)
+    loss = np.vectorize(hinge)(z)
+    average = np.sum(loss)/n
+    return average
     raise NotImplementedError
 
 
-def neural_network(inputs, weights):
-    """
-     Takes an input vector and runs it through a 1-layer neural network
-     with a given weight matrix and returns the output.
 
-     Arg:
-       inputs - 2 x 1 NumPy array
-       weights - 2 x 1 NumPy array
-     Returns (in this order):
-       out - a 1 x 1 NumPy array, representing the output of the neural network
+
+def perceptron_single_step_update(
+        feature_vector,
+        label,
+        current_theta,
+        current_theta_0):
     """
-    z = np.tanh(np.matmul(weights.T, inputs))
-    return z
+    Updates the classification parameters `theta` and `theta_0` via a single
+    step of the perceptron algorithm.  Returns new parameters rather than
+    modifying in-place.
+
+    Args:
+        feature_vector - A numpy array describing a single data point.
+        label - The correct classification of the feature vector.
+        current_theta - The current theta being used by the perceptron
+            algorithm before this update.
+        current_theta_0 - The current theta_0 being used by the perceptron
+            algorithm before this update.
+    Returns a tuple containing two values:
+        the updated feature-coefficient parameter `theta` as a numpy array
+        the updated offset parameter `theta_0` as a floating point number
+    """
+    theta, theta_0 = current_theta, current_theta_0
+
+    if label * ( np.dot(current_theta, feature_vector) + current_theta_0) <= 1e-8:
+        theta = current_theta + label * feature_vector
+        theta_0 = current_theta_0 + label
+
+    return (theta, theta_0)
     raise NotImplementedError
 
-def scalar_function(x, y):
+
+
+def perceptron(feature_matrix, labels, T):
     """
-    Returns the f(x,y) defined in the problem statement.
+    Runs the full perceptron algorithm on a given set of data. Runs T
+    iterations through the data set: we do not stop early.
+
+    NOTE: Please use the previously implemented functions when applicable.
+    Do not copy paste code from previous parts.
+
+    Args:
+        `feature_matrix` - numpy matrix describing the given data. Each row
+            represents a single data point.
+        `labels` - numpy array where the kth element of the array is the
+            correct classification of the kth row of the feature matrix.
+        `T` - integer indicating how many times the perceptron algorithm
+            should iterate through the feature matrix.
+
+    Returns a tuple containing two values:
+        the feature-coefficient parameter `theta` as a numpy array
+            (found after T iterations through the feature matrix)
+        the offset parameter `theta_0` as a floating point number
+            (found also after T iterations through the feature matrix).
     """
-    if x<=y:
-        z = x*y
+    size = feature_matrix.shape[1]
+    theta = np.zeros((size,))  # dtype=np.float32
+    theta_0 = 0.0
+    for t in range(T):
+        for i in get_order(feature_matrix.shape[0]):
+            (theta, theta_0) = perceptron_single_step_update(
+                feature_matrix[i, :],
+                labels[i],
+                theta,
+                theta_0)
+            pass
+    return (theta, theta_0)
+
+
+def average_perceptron(feature_matrix, labels, T):
+    """
+    Runs the average perceptron algorithm on a given dataset.  Runs `T`
+    iterations through the dataset (we do not stop early) and therefore
+    averages over `T` many parameter values.
+
+    NOTE: Please use the previously implemented functions when applicable.
+    Do not copy paste code from previous parts.
+
+    NOTE: It is more difficult to keep a running average than to sum and
+    divide.
+
+    Args:
+        `feature_matrix` -  A numpy matrix describing the given data. Each row
+            represents a single data point.
+        `labels` - A numpy array where the kth element of the array is the
+            correct classification of the kth row of the feature matrix.
+        `T` - An integer indicating how many times the perceptron algorithm
+            should iterate through the feature matrix.
+
+    Returns a tuple containing two values:
+        the average feature-coefficient parameter `theta` as a numpy array
+            (averaged over T iterations through the feature matrix)
+        the average offset parameter `theta_0` as a floating point number
+            (averaged also over T iterations through the feature matrix).
+    """
+    size = feature_matrix.shape[1]
+    sum_theta = np.zeros((size,))
+    theta = np.zeros((size,))
+    sum_theta_0 = 0.0
+    theta_0 = 0.0
+    for t in range(T):
+        n = 0
+        for i in get_order(feature_matrix.shape[0]):
+            (theta, theta_0) = perceptron_single_step_update(
+                feature_matrix[i, :],
+                labels[i],
+                theta,
+                theta_0)
+            n = n + 1
+            sum_theta = sum_theta + theta
+            sum_theta_0 = sum_theta_0 + theta_0
+    average_theta = sum_theta/(T*n)
+    average_theta_0 = sum_theta_0/(T*n)
+    return (average_theta, average_theta_0)
+    raise NotImplementedError
+
+
+def pegasos_single_step_update(
+        feature_vector,
+        label,
+        L,
+        eta,
+        theta,
+        theta_0):
+    """
+    Updates the classification parameters `theta` and `theta_0` via a single
+    step of the Pegasos algorithm.  Returns new parameters rather than
+    modifying in-place.
+
+    Args:
+        `feature_vector` - A numpy array describing a single data point.
+        `label` - The correct classification of the feature vector.
+        `L` - The lamba value being used to update the parameters.
+        `eta` - Learning rate to update parameters.
+        `theta` - The old theta being used by the Pegasos
+            algorithm before this update.
+        `theta_0` - The old theta_0 being used by the
+            Pegasos algorithm before this update.
+    Returns:
+        a tuple where the first element is a numpy array with the value of
+        theta after the old update has completed and the second element is a
+        real valued number with the value of theta_0 after the old updated has
+        completed.
+    """
+    if (label * (np.dot(theta, feature_vector) + theta_0)) <= 1.0:
+        theta = (1 - eta * L) * theta + (eta * label) * feature_vector
+        theta_0 = theta_0 + eta * label
     else:
-        z = x/y
-    return z
+        theta = (1 - eta * L) * theta
+    return theta, theta_0
     raise NotImplementedError
 
-def vector_function(x, y):
+
+
+def pegasos(feature_matrix, labels, T, L):
     """
-    Make sure vector_function can deal with vector input x,y
+    Runs the Pegasos algorithm on a given set of data. Runs T iterations
+    through the data set, there is no need to worry about stopping early.  For
+    each update, set learning rate = 1/sqrt(t), where t is a counter for the
+    number of updates performed so far (between 1 and nT inclusive).
+
+    NOTE: Please use the previously implemented functions when applicable.  Do
+    not copy paste code from previous parts.
+
+    Args:
+        `feature_matrix` - A numpy matrix describing the given data. Each row
+            represents a single data point.
+        `labels` - A numpy array where the kth element of the array is the
+            correct classification of the kth row of the feature matrix.
+        `T` - An integer indicating how many times the algorithm
+            should iterate through the feature matrix.
+        `L` - The lamba value being used to update the Pegasos
+            algorithm parameters.
+
+    Returns:
+        a tuple where the first element is a numpy array with the value of the
+        theta, the linear classification parameter, found after T iterations
+        through the feature matrix and the second element is a real number with
+        the value of the theta_0, the offset classification parameter, found
+        after T iterations through the feature matrix.
     """
-    c = np.vectorize(scalar_function)(x, y)
-    return c
+    n = feature_matrix.shape[0]
+    m = feature_matrix.shape[1]
+    theta = np.zeros((m,))
+    theta_0 = 0.0
+    t_set = np.array([i for i in range(1, n * T + 1)])
+    eta_set = 1 / np.sqrt(t_set)
+    idx = 0
+    for trial in range(T):
+        for i in get_order(feature_matrix.shape[0]):
+            theta, theta_0 = pegasos_single_step_update(
+                feature_matrix[i, :],
+                labels[i],
+                L,
+                eta_set[idx],
+                theta,
+                theta_0)
+            idx += 1
+    return theta, theta_0
     raise NotImplementedError
 
-def distance_line_point(theta, theta_0, Xn, Yn):
+
+
+#==============================================================================
+#===  PART II  ================================================================
+#==============================================================================
+
+
+
+##  #pragma: coderesponse template
+##  def decision_function(feature_vector, theta, theta_0):
+##      return np.dot(theta, feature_vector) + theta_0
+##  def classify_vector(feature_vector, theta, theta_0):
+##      return 2*np.heaviside(decision_function(feature_vector, theta, theta_0), 0)-1
+##  #pragma: coderesponse end
+
+
+
+def classify(feature_matrix, theta, theta_0):
     """
-    calculates the distance between line (theta * a + theta_0) and point a = (a1, a2).
-    d = _(0*a + 0o)_            d = _(theta * a + theta_0)_
-           ||0||                           ||theta||
-    Arg:
-        inputs theta NumPy array
-        inputs theta_0 NumPy array
-        inputs Xn n x 1 NumPy array
-        inputs Yn n x 1 NumPy array
-    Returns (in this order):
-        out - a 1 x 1 NumPy array, representing the the distance d for (x,y) E Sn
+    A classification function that uses given parameters to classify a set of
+    data points.
+
+    Args:
+        `feature_matrix` - numpy matrix describing the given data. Each row
+            represents a single data point.
+        `theta` - numpy array describing the linear classifier.
+        `theta_0` - real valued number representing the offset parameter.
+
+    Returns:
+        a numpy array of 1s and -1s where the kth element of the array is the
+        predicted classification of the kth row of the feature matrix using the
+        given theta and theta_0. If a prediction is GREATER THAN zero, it
+        should be considered a positive classification.
     """
-    a = np.vstack((Xn,Yn))
-    d = (np.matmul(theta, a) + theta_0) / np.linalg.norm(theta)
-    return d
+    size = feature_matrix.shape[0]
+    set_labels = np.zeros((size,))
+
+    for i in range(size):
+        h = np.dot(theta,feature_matrix[i]) + theta_0
+        if h >= 1e-8:
+            set_labels[i] = 1
+        else:
+            set_labels[i] = -1
+    return set_labels
+    raise NotImplementedError
 
 
-v = randomization(3)
-print(v)
-print(v.T)
-print("")
+def classifier_accuracy(
+        classifier,
+        train_feature_matrix,
+        val_feature_matrix,
+        train_labels,
+        val_labels,
+        **kwargs):
+    """
+    Trains a linear classifier and computes accuracy.  The classifier is
+    trained on the train data.  The classifier's accuracy on the train and
+    validation data is then returned.
 
-A, B, s = operations(5,3)
-print(A)
-print(B)
-print(s)
+    Args:
+        `classifier` - A learning function that takes arguments
+            (feature matrix, labels, **kwargs) and returns (theta, theta_0)
+        `train_feature_matrix` - A numpy matrix describing the training
+            data. Each row represents a single data point.
+        `val_feature_matrix` - A numpy matrix describing the validation
+            data. Each row represents a single data point.
+        `train_labels` - A numpy array where the kth element of the array
+            is the correct classification of the kth row of the training
+            feature matrix.
+        `val_labels` - A numpy array where the kth element of the array
+            is the correct classification of the kth row of the validation
+            feature matrix.
+        `kwargs` - Additional named arguments to pass to the classifier
+            (e.g. T or L)
 
-A = np.array([1,2])
-B = np.array([2,2])
-s = norm(A, B)
-print(A)
-print(B)
-print(s)
-print("\n")
+    Returns:
+        a tuple in which the first element is the (scalar) accuracy of the
+        trained classifier on the training data and the second element is the
+        accuracy of the trained classifier on the validation data.
+    """
+    # obtain weights with our classifier
+    theta, theta_0 = classifier(train_feature_matrix,train_labels,**kwargs,)
+    # training classification
+    training_labels = classify(train_feature_matrix, theta, theta_0)
+    # comparing our classify trained_labels to the provided train_labels
+    training_accuracy = accuracy(training_labels, train_labels)
+    # validation classification
+    validation_labels = classify(val_feature_matrix, theta, theta_0)
+    validation_accuracy = accuracy(validation_labels, val_labels)
 
-# A = randomization(10)
-# B = randomization(10)
-A = np.array([0.67996147,0.42809705,0.96261992,0.88771512,0.60105649,0.05127345,0.14416819,0.77735598,0.47073118,0.69904909])
-B = np.array([0.56261346,0.90882682,0.61188960,0.73015091,0.51883126,0.64649271,0.73747600,0.41865184,0.90141100,0.59611053])
-theta = np.array([1,1])
-m = -theta[1]/theta[0]
-theta_0 = 1
-print(theta)
-print("Xn")
-print(A)
-print("Yn")
-print(B)
-r = distance_line_point(theta,theta_0,A,B)
-print("result")
-print(r)
+    return (training_accuracy, validation_accuracy)
+    raise NotImplementedError
 
-plt.plot(A, m*A+theta_0, linestyle='solid')
-plt.scatter(A,B)
-plt.show()
+
+
+def extract_words(text):
+    """
+    Helper function for `bag_of_words(...)`.
+    Args:
+        a string `text`.
+    Returns:
+        a list of lowercased words in the string, where punctuation and digits
+        count as their own words.
+    """
+    # Your code here
+    for c in punctuation + digits:
+        text = text.replace(c, ' ' + c + ' ')
+    return text.lower().split()
+
+
+def bag_of_words(texts, remove_stopword=False):
+    """
+    NOTE: feel free to change this code as guided by Section 3 (e.g. remove
+    stopwords, add bigrams etc.)
+
+    Args:
+        `texts` - a list of natural language strings.
+    Returns:
+        a dictionary that maps each word appearing in `texts` to a unique
+        integer `index`.
+    """
+    # Your code here
+    raise NotImplementedError
+
+    indices_by_word = {}  # maps word to unique index
+    for text in texts:
+        word_list = extract_words(text)
+        for word in word_list:
+            if word in indices_by_word: continue
+            if word in stopword: continue
+            indices_by_word[word] = len(indices_by_word)
+
+    return indices_by_word
+
+
+
+def extract_bow_feature_vectors(reviews, indices_by_word, binarize=True):
+    """
+    Args:
+        `reviews` - a list of natural language strings
+        `indices_by_word` - a dictionary of uniquely-indexed words.
+    Returns:
+        a matrix representing each review via bag-of-words features.  This
+        matrix thus has shape (n, m), where n counts reviews and m counts words
+        in the dictionary.
+    """
+    # Your code here
+    feature_matrix = np.zeros([len(reviews), len(indices_by_word)], dtype=np.float64)
+    for i, text in enumerate(reviews):
+        word_list = extract_words(text)
+        for word in word_list:
+            if word not in indices_by_word: continue
+            feature_matrix[i, indices_by_word[word]] += 1
+    if binarize:
+        # Your code here
+        raise NotImplementedError
+    return feature_matrix
+
+
+
+def accuracy(preds, targets):
+    """
+    Given length-N vectors containing predicted and target labels,
+    returns the fraction of predictions that are correct.
+    """
+    return (preds == targets).mean()
